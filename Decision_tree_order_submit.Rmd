@@ -1,0 +1,240 @@
+---
+title: "Order submit decision tree"
+author: "Nagarjun G B"
+date: "6/20/2022"
+output: pdf_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(scales)
+
+cc <- read_csv('cc.csv')%>% mutate(fullVisitorId = as.character(fullVisitorId)) %>% filter(!is.na(country))
+# clp <- read_csv('clp.csv')%>% mutate(fullVisitorId = as.character(fullVisitorId)) %>% filter(!is.na(country))
+# cdp <- read_csv('cdp.csv')%>% mutate(fullVisitorId = as.character(fullVisitorId)) %>% filter(!is.na(country))
+# order_sub <- read_csv('order_sub.csv')%>%mutate(fullVisitorId = as.character(fullVisitorId)) %>% filter(!is.na(country))
+# 
+# 
+# sample <- order_sub%>%
+#   slice(1)%>%
+#   left_join(clp, by = 'fullVisitorId')%>%
+#   left_join(cdp, by = 'fullVisitorId')%>%
+#   left_join(cc, by = 'fullVisitorId')
+
+```
+
+
+```{r processed}
+cc_processed <- cc %>% 
+  group_by(fullVisitorId, country) %>% 
+  summarise(dates_n = n_distinct(date),
+            visits_n = n_distinct(visitnumber),
+            session_duration_mean = mean(session_duration, na.rm = TRUE),
+            channels_n = n_distinct(channel),
+            organic = any(channel %in% 'Organic Search'),
+            paid = any(channel %in% 'Paid Search'),
+            volvo = any(channel %in% 'Volvo'),
+            direct = any(channel %in% 'Direct'),
+            social = any(channel %in% 'Social'),
+            desktop = any(device %in% 'desktop'),
+            mobile = any(device %in% 'mobile'),
+            navBar_chat_icon = sum(navBar_chat_icon, na.rm = TRUE) > 0,
+            navBar_open_menu = sum(navBar_open_menu, na.rm = TRUE) > 0,
+            clicked_in_menu = sum(clicked_in_menu, na.rm = TRUE) > 0,
+            started_chat = sum(started_chat, na.rm = TRUE) > 0,
+            level_select = sum(level_select, na.rm = TRUE) > 0,
+            level_learnmore = sum(level_learnmore, na.rm = TRUE) > 0,
+            level_compare = sum(level_compare, na.rm = TRUE) > 0,
+            expand_your_design = sum(expand_your_design, na.rm = TRUE) > 0,
+            expand_your_design_learnmore = sum(expand_your_design_learnmore, na.rm = TRUE) > 0,
+            powertrain_learnmore = sum(powertrain_learnmore, na.rm = TRUE) > 0,
+            color_image_swap = sum(color_image_swap, na.rm = TRUE) > 0,
+            color_gallery_overlay = sum(color_gallery_overlay, na.rm = TRUE) > 0,
+            color_selection = sum(color_selection, na.rm = TRUE) > 0,
+            interior_gallery_overlay = sum(interior_gallery_overlay, na.rm = TRUE) > 0,
+            interior_selection = sum(interior_selection, na.rm = TRUE) > 0,
+            interior_conflict = sum(interior_conflict, na.rm = TRUE) > 0,
+            wheels_image_swap = sum(wheels_image_swap, na.rm = TRUE) > 0,
+            wheelsORexterior_gallery_overlay = sum(wheelsORexterior_gallery_overlay, na.rm = TRUE) > 0,
+            wheels_selection = sum(wheels_selection, na.rm = TRUE) > 0,
+            wheels_learnmore = sum(wheels_learnmore, na.rm = TRUE) > 0,
+            interior_learnmore = sum(interior_learnmore, na.rm = TRUE) > 0,
+            options_learnmore = sum(options_learnmore, na.rm = TRUE) > 0,
+            options_add = sum(options_add, na.rm = TRUE) > 0,
+            exterior_add = sum(exterior_add, na.rm = TRUE) > 0,
+            exterior_learnmore = sum(exterior_learnmore, na.rm = TRUE) > 0,
+            package_learnmore = sum(package_learnmore, na.rm = TRUE) > 0,
+            package_add = sum(exterior_learnmore, na.rm = TRUE) > 0,
+            cta_main = sum(cta_main, na.rm = TRUE) > 0,
+            cta_floating = sum(cta_floating, na.rm = TRUE) > 0,
+            conversion = any(cta_main,cta_floating)
+  ) %>% 
+  select(-fullVisitorId) %>% 
+  ungroup()
+
+```
+
+## EDA
+```{r}
+## what % of users complete the conversion
+## most used feature
+## what learn more is most used
+## conversion by channel
+## conversion by device
+## session duration when it involved config
+## interactions with nav bar
+
+## 
+
+```
+
+
+# what % of users complete the conversion
+```{r }
+cc_processed %>% 
+  group_by(country) %>% 
+  summarise(cr = sum(conversion)/n()) %>% 
+  ggplot(aes(country, cr))+
+  geom_col(fill = '#0571B0')+
+  scale_y_continuous(labels = percent_format(), name = 'conversion rate')+
+  labs(title = 'Config conversion rate by country',
+       subtitle = '% of users that clicked *next* on the configurator',
+       x = '')+
+  theme(plot.title = element_text(hjust=0.5))
+
+```
+
+## most used feature
+```{r}
+
+data.frame(name = names(cc_processed), 
+                          value = sapply(cc_processed, function(x) mean(x, na.rm = TRUE))) %>% 
+  filter(!name %in% c('fullVisitorId', 'country', 'dates_n', 'visits_n', 'session_duration_mean', 'channels_n', 'organic', 'paid','volvo','direct','social', 'desktop', 'mobile', 'navBar_chat_icon', 'conversion')) %>% 
+  filter(!grepl('learnmore', name)) %>% 
+  ggplot(aes(reorder(name,value), value))+
+  geom_col(fill = '#0571B0')+
+  scale_y_continuous(labels = percent_format(), name = 'usage rate')+
+  labs(title = 'Configurator - Most Used Features', x = '')+
+  coord_flip()+
+  theme(plot.title = element_text(hjust=0.5))
+
+
+```
+
+## what learn more is most used
+```{r}
+
+data.frame(name = names(cc_processed), 
+                          value = sapply(cc_processed, function(x) mean(x, na.rm = TRUE))) %>% 
+  filter(grepl('learnmore', name)) %>% 
+  ggplot(aes(reorder(name,value), value))+
+  geom_col(fill = '#0571B0')+
+  scale_y_continuous(labels = percent_format(), name = 'usage rate')+
+  labs(title = 'Configurator - Learn more usage', x = '')+
+  coord_flip()+
+  theme(plot.title = element_text(hjust=0.5))
+
+```
+
+## session duration when it involved config
+
+```{r}
+cc_processed %>% 
+  select(conversion, session_duration_mean) %>% 
+  ggplot(aes(conversion, session_duration_mean))+
+  geom_violin(fill = '#0571B0')+
+  scale_y_log10()+
+  labs(title = 'Session duration, split by config conversion', x = 'Configuration conversion', y= 'Session duration involving configurator (in seconds)')+
+  theme(plot.title = element_text(hjust=0.5))
+  
+```
+
+
+
+# Modelling
+```{r}
+library(tidymodels)
+library(vip)
+library(rpart.plot)
+library(rsample)
+library(recipes)
+
+```
+
+
+## Split data
+```{r}
+
+set.seed(123) 
+split = rsample::initial_split(cc_processed %>% select(-fullVisitorId), prop = .8, strata = conversion) 
+
+train <- split %>% training()
+test <- split %>% testing()
+
+set.seed(456)
+folds <- vfold_cv(train,v = 10)
+```
+
+
+# features
+```{r}
+recipe <- recipe(conversion ~ ., data = train) %>% 
+  step_normalize(all_numeric()) %>% 
+  step_dummy(country)
+
+model <- decision_tree(
+  cost_complexity = tune(), 
+  tree_depth = tune(), 
+  min_n = tune()) %>% 
+  set_engine('rpart') %>% 
+  set_mode('classification')
+
+```
+
+
+## tuning
+
+```{r}
+grid <- grid_regular(cost_complexity(), min_n(), tree_depth(),levels = 3)
+
+# doParallel::registerDoParallel()
+
+set.seed(789)
+tree_rs <- tune_grid(
+  model,
+  conversion ~ .,
+  resamples = folds,
+  grid = grid,
+  metrics = metric_set(accuracy)
+)
+
+tree_rs
+
+```
+
+
+
+
+## what learn more is most used - by conversion
+```{r}
+
+data.frame(name = names(cc_processed), 
+                          value = sapply(cc_processed, function(x) mean(x, na.rm = TRUE))) %>% 
+  filter(grepl('learnmore', name) | name == 'conversion') %>% 
+  ggplot(aes(reorder(name,value), value))+
+  geom_col(fill = '#0571B0')+
+  scale_y_continuous(labels = percent_format(), name = 'usage rate')+
+  labs(title = 'Configurator - Learn more usage - configurator conversion', x = '')+
+  coord_flip()+
+  facet_wrap(~ conversion)
+  theme(plot.title = element_text(hjust=0.5))
+
+```
+
+
+
+
+
