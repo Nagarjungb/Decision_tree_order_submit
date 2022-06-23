@@ -175,7 +175,7 @@ train <- split %>% training()
 test <- split %>% testing()
 
 set.seed(456)
-folds <- vfold_cv(train,v = 10)
+folds <- vfold_cv(train,v = 5)
 ```
 
 
